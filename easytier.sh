@@ -103,7 +103,7 @@ install_easytier() {
     fi
 
 
-    colorize yellow "Installing EasyMesh Core..." bold
+    colorize yellow "Installing EasyTier Core..." bold
     mkdir -p $DEST_DIR &> /dev/null
     curl -L $URL -o $ZIP_FILE &> /dev/null
     unzip $ZIP_FILE -d $DEST_DIR &> /dev/null
