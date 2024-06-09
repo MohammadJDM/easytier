@@ -154,20 +154,7 @@ connect_network_pool(){
 	
 	port="11010"
     DEFAULT_PROTOCOL="udp"
-	
-	echo ''
-	read -p "[-] Enable encryption? (yes/no): " ENCRYPTION_CHOICE
-	case $ENCRYPTION_CHOICE in
-        [Nn]*)
-        	ENCRYPTION_OPTION="--disable-encryption"
-        	colorize yellow "Encryption is disabled"
-       		 ;;
-   		*)
-       		ENCRYPTION_OPTION=""
-       		colorize yellow "Encryption is enabled"
-             ;;
-	esac
-	echo ''
+	ENCRYPTION_OPTION="--disable-encryption"
 	
 	
 	if [ ! -z $PEER_ADDRESS ]; then
@@ -198,11 +185,11 @@ EOF
     if [ "$use_defaults" -eq 1 ]; then
         ipv4_address=$(curl -s https://api.ipify.org)
         echo "Server Public IPv4 is : $ipv4_address"
-        echo "Server Local IPv4 created : $IP_ADDRESS"
         colorize cyan "[✓] Generated Network Secret: $NETWORK_SECRET" bold
-        echo "you can select number 3 and to see these again"
     fi
-    read -p "	Press any key to continue..."
+    echo "Server Local IPv4 created : $IP_ADDRESS"
+    echo "you can select number 3 and to see these again"
+    read -p "Press any key to continue..."
 }
 
 remove_easymesh_service() {
@@ -249,13 +236,13 @@ remove_easymesh_service() {
         return 1
     fi
     
- read -p "	Press any key to continue..."
+ read -p "Press any key to continue..."
 }
 
 display_routes(){
 
 	$EASY_CLIENT route	
-    read -p "	Press any key to continue..."
+    read -p "Press any key to continue..."
 }
 
 show_network_secret() {
