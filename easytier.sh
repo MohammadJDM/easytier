@@ -151,26 +151,9 @@ connect_network_pool(){
     fi
 
 
-	echo ''
-    colorize green "[-] Select Default Protocol:" bold
-    echo "1) tcp"
-    echo "2) udp"
-    echo "3) ws"
-    echo "4) wss"
-    read -p "[*] Select your desired protocol (e.g., 1 for tcp): " PROTOCOL_CHOICE
 	
 	port="11010"
-    case $PROTOCOL_CHOICE in
-        1) DEFAULT_PROTOCOL="tcp" ;;
-        2) DEFAULT_PROTOCOL="udp" ;;
-        3) DEFAULT_PROTOCOL="ws" 
-        	port="11011"
-        ;;
-        4) DEFAULT_PROTOCOL="wss" 
-      	    port="11012"
-        ;;
-        *) colorize red "Invalid choice. Defaulting to tcp." ; DEFAULT_PROTOCOL="tcp" ;;
-    esac
+    DEFAULT_PROTOCOL="udp"
 	
 	echo ''
 	read -p "[-] Enable encryption? (yes/no): " ENCRYPTION_CHOICE
