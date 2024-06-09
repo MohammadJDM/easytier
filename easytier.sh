@@ -295,6 +295,7 @@ show_network_secret() {
 }
 
 while true; do
+    echo ""
     echo "1) Make Main Server Setup"
     echo "2) connect node server"
     echo "3) Display Secret Key"
