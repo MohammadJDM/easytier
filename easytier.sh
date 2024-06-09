@@ -127,6 +127,7 @@ connect_network_pool(){
         HOSTNAME="Main"
         ipv4_address=$(curl -s https://api.ipify.org)
         echo "Server Public IPv4 is : $ipv4_address"
+        echo "Server Local IPv4 created : $IP_ADDRESS"
         NETWORK_SECRET=$(generate_random_secret)
         echo ''
         colorize cyan "[✓] Generated Network Secret: $NETWORK_SECRET" bold
