@@ -125,13 +125,8 @@ connect_network_pool(){
         PEER_ADDRESS=""
         IP_ADDRESS="10.144.144.1"
         HOSTNAME="Main"
-        ipv4_address=$(curl -s https://api.ipify.org)
-        echo "Server Public IPv4 is : $ipv4_address"
-        echo "Server Local IPv4 created : $IP_ADDRESS"
         NETWORK_SECRET=$(generate_random_secret)
-        echo ''
-        colorize cyan "[✓] Generated Network Secret: $NETWORK_SECRET" bold
-        echo "you can select number 3 to show again later from main menu"
+
     else
         read -p "Your Main Server Public IP: " PEER_ADDRESS
         read -e -i "10.144.144.2" -p "[*] Enter a Local IP : " IP_ADDRESS
@@ -217,6 +212,13 @@ EOF
     sudo systemctl start easymesh.service &> /dev/null
 
     colorize green "Network Service Started." bold
+    if [ "$use_defaults" -eq 1 ]; then
+        ipv4_address=$(curl -s https://api.ipify.org)
+        echo "Server Public IPv4 is : $ipv4_address"
+        echo "Server Local IPv4 created : $IP_ADDRESS"
+        colorize cyan "[✓] Generated Network Secret: $NETWORK_SECRET" bold
+        echo "you can select number 3 and to see these again"
+    fi
     read -p "	Press any key to continue..."
 }
 
