@@ -263,6 +263,16 @@ show_network_secret() {
    
     
 }
+restart_service() {
+    echo "Restarting EasyMesh Service..."
+    sudo systemctl restart easymesh.service &> /dev/null
+    if [[ $? -eq 0 ]]; then
+        colorize green "EasyMesh Service restarted successfully." bold
+    else
+        colorize red "Failed to restart EasyMesh Service." bold
+    fi
+    read -p "Press any key to continue..."
+}
 
 while true; do
     echo ""
@@ -270,7 +280,8 @@ while true; do
     echo "2) connect node server"
     echo "3) Display Secret Key"
     echo "4) Display Routes"
-    echo "5) Remove Completely"
+    echo "5) Restart service"
+    echo "6) Remove Completely"
     echo "9) Back"
     read -p "Enter your choice : " choice
 
@@ -292,6 +303,9 @@ while true; do
             display_routes
             ;;
         5)
+            restart_service
+            ;;
+        6)
             remove_easymesh_service
             ;;
         9)
