@@ -264,12 +264,12 @@ show_network_secret() {
     
 }
 restart_service() {
-    echo "Restarting EasyMesh Service..."
+    echo "Restarting Service..."
     sudo systemctl restart easymesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
-        colorize green "EasyMesh Service restarted successfully." bold
+        colorize green "Service restarted successfully." bold
     else
-        colorize red "Failed to restart EasyMesh Service." bold
+        colorize red "Failed to restart Service." bold
     fi
     read -p "Press any key to continue..."
 }
