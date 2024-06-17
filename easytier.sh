@@ -170,7 +170,8 @@ After=network.target
 
 [Service]
 ExecStart=/root/easytier/easytier-core -i $IP_ADDRESS $PEER_ADDRESS --hostname $HOSTNAME --network-secret $NETWORK_SECRET --default-protocol $DEFAULT_PROTOCOL --multi-thread $ENCRYPTION_OPTION
-Restart=on-failure
+Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
