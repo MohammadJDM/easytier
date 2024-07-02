@@ -214,8 +214,8 @@ EOF
     sudo systemctl daemon-reload &> /dev/null
     sudo systemctl enable easymesh.service &> /dev/null
     sudo systemctl start easymesh.service &> /dev/null
-	sudo systemctl enable EasyTier_Ping.service &> /dev/null
-	sudo systemctl start EasyTier_Ping.service
+    sudo systemctl enable EasyTier_Ping.service &> /dev/null
+    sudo systemctl start EasyTier_Ping.service &> /dev/null
 
     colorize green "Network Service Started." bold
     if [ "$use_defaults" -eq 1 ]; then
@@ -261,7 +261,9 @@ remove_easymesh_service() {
         echo "Failed to remove service."
         return 1
     fi
-
+    sudo systemctl stop EasyTier_Ping.service &> /dev/null
+    sudo systemctl disable EasyTier_Ping.service &> /dev/null
+    sudo rm /etc/systemd/system/EasyTier_Ping.service &> /dev/null
     echo "Reloading systemd daemon..."
     sudo systemctl daemon-reload
     if [[ $? -eq 0 ]]; then
@@ -271,9 +273,6 @@ remove_easymesh_service() {
         sleep 2
         return 1
     fi
-    sudo systemctl stop EasyTier_Ping.service
-    sudo systemctl disable EasyTier_Ping.service &> /dev/null
-    sudo rm /etc/systemd/system/EasyTier_Ping.service
  read -p "Press any key to continue..."
 }
 
