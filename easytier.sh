@@ -186,10 +186,10 @@ fi
 
 IP_ADDRESS=\$1
 
-# Infinite loop to ping every 3 seconds
+# Infinite loop to ping every 1 seconds
 while true; do
     ping -c 1 \$IP_ADDRESS
-    sleep 3
+    sleep 1
 done
 EOF
 	cat > /etc/systemd/system/EasyTier_Ping.service <<EOF
