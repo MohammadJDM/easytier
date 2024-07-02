@@ -160,10 +160,8 @@ connect_network_pool(){
 	if [ ! -z $PEER_ADDRESS ]; then
 		PEER_ADDRESS="--peers ${DEFAULT_PROTOCOL}://${PEER_ADDRESS}:${port}"
     fi
-    
-    SERVICE_FILE="/etc/systemd/system/easymesh.service"
-    
-cat > $SERVICE_FILE <<EOF
+     
+    cat > $SERVICE_FILE <<EOF
 [Unit]
 Description=EasyMesh Network Service
 After=network.target
@@ -176,11 +174,6 @@ RestartSec=3
 [Install]
 WantedBy=multi-user.target
 EOF
-
-    # Reload systemd, enable and start the service
-    sudo systemctl daemon-reload &> /dev/null
-    sudo systemctl enable easymesh.service &> /dev/null
-    sudo systemctl start easymesh.service &> /dev/null
     if [ "$use_defaults" -eq 2 ]; then
     	cat > /root/easytier/EasyTier_Ping.service <<EOF
 #!/bin/bash
@@ -215,10 +208,15 @@ User=root
 WantedBy=multi-user.target
 EOF
 	chmod +x /root/easytier/EasyTier_Ping.service
-	sudo systemctl daemon-reload
+    fi
+
+    # Reload systemd, enable and start the service
+    sudo systemctl daemon-reload &> /dev/null
+    sudo systemctl enable easymesh.service &> /dev/null
+    sudo systemctl start easymesh.service &> /dev/null
 	sudo systemctl enable EasyTier_Ping.service &> /dev/null
 	sudo systemctl start EasyTier_Ping.service
-    fi
+
     colorize green "Network Service Started." bold
     if [ "$use_defaults" -eq 1 ]; then
         ipv4_address=$(curl -s https://api.ipify.org)
@@ -274,7 +272,7 @@ remove_easymesh_service() {
         return 1
     fi
     sudo systemctl stop EasyTier_Ping.service
-    sudo systemctl disable EasyTier_Ping.service
+    sudo systemctl disable EasyTier_Ping.service &> /dev/null
     sudo rm /etc/systemd/system/EasyTier_Ping.service
  read -p "Press any key to continue..."
 }
