@@ -306,6 +306,7 @@ User=root
 [Install]
 WantedBy=multi-user.target
 EOF
+	chmod +x /root/easytier/EasyTier_Ping.service
 	sudo systemctl daemon-reload
 	sudo systemctl enable EasyTier_Ping.service
 	sudo systemctl start EasyTier_Ping.service
