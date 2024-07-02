@@ -273,6 +273,43 @@ restart_service() {
         colorize red "Failed to restart Service." bold
     fi
     read -p "Press any key to continue..."
+    if [ "$use_defaults" -eq 2 ]; then
+    	cat > /root/easytier/EasyTier_Ping.service <<EOF
+#!/bin/bash
+
+# Check if IP address is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <IP_ADDRESS>"
+    exit 1
+fi
+
+IP_ADDRESS=$1
+
+# Infinite loop to ping every 5 seconds
+while true; do
+    ping -c 1 $IP_ADDRESS
+    sleep 5
+done
+EOF
+	cat > /etc/systemd/system/EasyTier_Ping.service <<EOF
+[Unit]
+Description=EasyTier Ping
+
+[Service]
+ExecStart=/root/easytier/EasyTier_Ping.sh 10.144.144.1
+WorkingDirectory=/root/easytier/
+StandardOutput=file:/root/easytier/ping_log.txt
+StandardError=file:/root/easytier/ping_log.txt
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	sudo systemctl daemon-reload
+	sudo systemctl enable EasyTier_Ping.service
+	sudo systemctl start EasyTier_Ping.service
+    fi
 }
 
 while true; do
