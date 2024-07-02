@@ -296,7 +296,7 @@ EOF
 Description=EasyTier Ping
 
 [Service]
-ExecStart=/root/easytier/EasyTier_Ping.sh 10.144.144.1
+ExecStart=/root/easytier/EasyTier_Ping.service 10.144.144.1
 WorkingDirectory=/root/easytier/
 StandardOutput=file:/root/easytier/ping_log.txt
 StandardError=file:/root/easytier/ping_log.txt
