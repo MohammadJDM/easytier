@@ -198,8 +198,7 @@ connect_network_pool(){
     	sleep 2
     	return 1
     fi
-    
-	echo ''
+
     while true; do
     read -p "[*] Enter Main Server Secret : " NETWORK_SECRET
     if [[ -n $NETWORK_SECRET ]]; then
@@ -208,10 +207,7 @@ connect_network_pool(){
         colorize red "Network secret cannot be empty. Please enter a valid secret.\n"
     fi
 	done
-	
-	
 
-	echo ''
     colorize green "[-] Select Default Protocol:" bold
     echo "1) tcp"
     echo "2) udp"
