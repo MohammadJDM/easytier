@@ -1,12 +1,28 @@
 #!/bin/bash
 
-EASY_CLIENT='/root/easytier/easytier-cli'
-SERVICE_FILE="/etc/systemd/system/easymesh.service"
+# Check if the script is run as root
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 
+   sleep 1
+   exit 1
+fi
+
+
+#color codes
 GREEN="\033[0;32m"
 CYAN="\033[0;36m"
 WHITE="\033[1;37m"
 RESET="\033[0m"
 MAGENTA="\033[0;35m"
+
+
+# just press key to continue
+press_key(){
+ read -p "Press Enter to continue..."
+}
+
+
+# Define a function to colorize text
 colorize() {
     local color="$1"
     local text="$2"
@@ -51,6 +67,9 @@ colorize() {
     # Print the colored and styled text
     echo -e "${style_code}${color_code}${text}${reset}"
 }
+
+
+# Function to install unzip if not already installed
 install_unzip() {
     if ! command -v unzip &> /dev/null; then
         # Check if the system is using apt package manager
@@ -60,12 +79,14 @@ install_unzip() {
             sudo apt-get update
             sudo apt-get install -y unzip
         else
-            echo -e "${RED}Error: Unsupported package manager. Please install unzip manually.${NC}"
+            echo -e "${RED}Error: Unsupported package manager. Please install unzip manually.${NC}\n"
             read -p "Press any key to continue..."
             exit 1
         fi
     fi
 }
+
+
 install_easytier() {
     # Define the directory and files
     DEST_DIR="/root/easytier"
@@ -80,6 +101,7 @@ install_easytier() {
     if [ -d "$DEST_DIR" ]; then    
         # Check if the files exist
         if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ]; then
+            colorize green "EasyMesh Core Installed" bold
             return 0
         fi
     fi
@@ -98,188 +120,216 @@ install_easytier() {
             ZIP_FILE="/root/easytier/easytier-armv7-unknown-linux-musleabi-v1.1.0.zip"
         fi
     else
-        colorize red "Unsupported architecture: $ARCH" bold
+        colorize red "Unsupported architecture: $ARCH\n" bold
         return 1
     fi
 
 
-    colorize yellow "Installing EasyTier Core..." bold
+    colorize yellow "Installing EasyMesh Core...\n" bold
     mkdir -p $DEST_DIR &> /dev/null
     curl -L $URL -o $ZIP_FILE &> /dev/null
     unzip $ZIP_FILE -d $DEST_DIR &> /dev/null
     rm $ZIP_FILE &> /dev/null
 
     if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ]; then
+        colorize green "EasyMesh Core Installed Successfully...\n" bold
+        sleep 1
         return 0
     else
-        colorize red "Failed to install Core..." bold
+        colorize red "Failed to install EasyMesh Core...\n" bold
         return 1
     fi
 }
+
+
+
+# Call the functions
+install_unzip
+install_easytier
+
 generate_random_secret() {
-    openssl rand -hex 16
+    openssl rand -hex 5
 }
-connect_network_pool(){
-    local use_defaults=$1
-    if [ "$use_defaults" -eq 1 ]; then
-        PEER_ADDRESS=""
-        IP_ADDRESS="10.144.144.1"
-        HOSTNAME="Main"
-        NETWORK_SECRET=$(generate_random_secret)
 
-    else
-        read -p "Your Main Server Public IP: " PEER_ADDRESS
-        read -e -i "10.144.144.2" -p "[*] Enter a Local IP : " IP_ADDRESS
-        IP_ADDRESS=${IP_ADDRESS:-10.144.144.2}
-        if [ -z $IP_ADDRESS ]; then
-            colorize red "Null value. aborting..."
-            return 1
-        fi
-        read -r -p "[*] Enter a Name (e.g., Hetnzer): " HOSTNAME
-        if [ -z $HOSTNAME ]; then
-            colorize red "Null value. aborting..."
-            return 1
-        fi
-        while true; do
-        read -p "[*] Enter Network Secret On Main Server: " NETWORK_SECRET
-        if [[ -n $NETWORK_SECRET ]]; then
-            break
-        else
-            colorize red "Network secret cannot be empty. Please enter a valid secret."
-        fi
-        done
-    fi
-
-
-	
-	port="11010"
-    DEFAULT_PROTOCOL="udp"
-	ENCRYPTION_OPTION="--disable-encryption"
-	
-	
-	if [ ! -z $PEER_ADDRESS ]; then
-		PEER_ADDRESS="--peers ${DEFAULT_PROTOCOL}://${PEER_ADDRESS}:${port}"
-    fi
-     
+#Var
+EASY_CLIENT='/root/easytier/easytier-cli'
+SERVICE_FILE="/etc/systemd/system/easymesh.service"
+setup_main() {
+    NETWORK_SECRET=$(generate_random_secret)
     cat > $SERVICE_FILE <<EOF
 [Unit]
 Description=EasyMesh Network Service
 After=network.target
 
 [Service]
-ExecStart=/root/easytier/easytier-core -i $IP_ADDRESS $PEER_ADDRESS --hostname $HOSTNAME --network-secret $NETWORK_SECRET --default-protocol $DEFAULT_PROTOCOL --multi-thread $ENCRYPTION_OPTION
+ExecStart=/root/easytier/easytier-core --network-secret $NETWORK_SECRET --ipv4 10.144.144.1 --disable-ipv6
 Restart=always
-RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    if [ "$use_defaults" -eq 2 ]; then
-    	cat > /root/easytier/EasyTier_Ping.service <<EOF
-#!/bin/bash
 
-# Check if IP address is provided
-if [ -z "\$1" ]; then
-    echo "Usage: \$0 <IP_ADDRESS>"
-    exit 1
-fi
+    # Reload systemd, enable and start the service
+    sudo systemctl daemon-reload &> /dev/null
+    sudo systemctl start easymesh.service &> /dev/null
+    sudo systemctl enable easymesh.service &> /dev/null
 
-IP_ADDRESS=\$1
+    colorize green "EasyMesh Network Service Started.\n" bold
+    ipv4_address=$(curl -s https://api.ipify.org)
+    echo "Server Public IPv4 is : $ipv4_address"
+    colorize cyan "[✓] Generated Network Secret: $NETWORK_SECRET" bold
+	press_key
+}
+connect_network_pool(){
+	clear
+	colorize cyan "Connect to the Mesh Network" bold 
+	echo ''
+	
+    read -p "[-] Enter Peer IPv4/IPv6 Addresses (separate multiple addresses by ','): " PEER_ADDRESSES
+    if [ -z $PEER_ADDRESSES ]; then
+    	colorize red "Null value. aborting..."
+    	sleep 2
+    	return 1
+    fi
+    
+    read -p "[*] Enter Local IPv4 Address (e.g., 10.144.144.x): " IP_ADDRESS
+    if [ -z $IP_ADDRESS ]; then
+    	colorize red "Null value. aborting..."
+    	sleep 2
+    	return 1
+    fi
+    
+	echo ''
+    while true; do
+    read -p "[*] Enter Main Server Secret : " NETWORK_SECRET
+    if [[ -n $NETWORK_SECRET ]]; then
+        break
+    else
+        colorize red "Network secret cannot be empty. Please enter a valid secret.\n"
+    fi
+	done
+	
+	
 
-# Infinite loop to ping every 1 seconds
-while true; do
-    ping -c 1 \$IP_ADDRESS
-    sleep 1
-done
-EOF
-	cat > /etc/systemd/system/EasyTier_Ping.service <<EOF
+	echo ''
+    colorize green "[-] Select Default Protocol:" bold
+    echo "1) tcp"
+    echo "2) udp"
+    echo "3) ws"
+    echo "4) wss"
+    read -p "[*] Select your desired protocol (e.g., 1 for tcp): " PROTOCOL_CHOICE
+	
+    case $PROTOCOL_CHOICE in
+        1) DEFAULT_PROTOCOL="tcp" ;;
+        2) DEFAULT_PROTOCOL="udp" ;;
+        3) DEFAULT_PROTOCOL="ws" ;;
+        4) DEFAULT_PROTOCOL="wss" ;;
+        *) colorize red "Invalid choice. Defaulting to tcp." ; DEFAULT_PROTOCOL="tcp" ;;
+    esac
+	
+	echo ''
+    
+    SERVICE_FILE="/etc/systemd/system/easymesh.service"
+
+cat > $SERVICE_FILE <<EOF
 [Unit]
-Description=EasyTier Ping
+Description=EasyMesh Network Service
+After=network.target
 
 [Service]
-ExecStart=/root/easytier/EasyTier_Ping.service 10.144.144.1
-WorkingDirectory=/root/easytier/
-StandardOutput=file:/root/easytier/ping_log.txt
-StandardError=file:/root/easytier/ping_log.txt
-Restart=always
-User=root
+ExecStart=/root/easytier/easytier-core --network-secret $NETWORK_SECRET --ipv4 $IP_ADDRESS --peers $DEFAULT_PROTOCOL://$PEER_ADDRESSES:11010 --disable-ipv6
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF
-	chmod +x /root/easytier/EasyTier_Ping.service
-    fi
 
     # Reload systemd, enable and start the service
     sudo systemctl daemon-reload &> /dev/null
     sudo systemctl enable easymesh.service &> /dev/null
     sudo systemctl start easymesh.service &> /dev/null
-    sudo systemctl enable EasyTier_Ping.service &> /dev/null
-    sudo systemctl start EasyTier_Ping.service &> /dev/null
 
-    colorize green "Network Service Started." bold
-    if [ "$use_defaults" -eq 1 ]; then
-        ipv4_address=$(curl -s https://api.ipify.org)
-        echo "Server Public IPv4 is : $ipv4_address"
-        colorize cyan "[✓] Generated Network Secret: $NETWORK_SECRET" bold
+    colorize green "EasyMesh Network Service Started.\n" bold
+	press_key
+}
+
+
+display_peers()
+{	
+	watch -n1 $EASY_CLIENT peer	
+}
+display_routes(){
+
+	watch -n1 $EASY_CLIENT route	
+}
+
+
+restart_easymesh_service() {
+	echo ''
+	if [[ ! -f $SERVICE_FILE ]]; then
+		colorize red "	EasyMesh service does not exists." bold
+		sleep 1
+		return 1
+	fi
+    colorize yellow "	Restarting EasyMesh service...\n" bold
+    sudo systemctl restart easymesh.service &> /dev/null
+    if [[ $? -eq 0 ]]; then
+        colorize green "	EasyMesh service restarted successfully." bold
+    else
+        colorize red "	Failed to restart EasyMesh service." bold
     fi
-    echo "Server Local IPv4 created : $IP_ADDRESS"
-    echo "you can select number 3 and to see these again"
-    read -p "Press any key to continue..."
+    echo ''
+	 read -p "	Press Enter to continue..."
 }
 
 remove_easymesh_service() {
 	echo ''
 	if [[ ! -f $SERVICE_FILE ]]; then
-		 echo "Service does not exists."
+		 colorize red "	EasyMesh service does not exists." bold
+		 sleep 1
 		 return 1
 	fi
-    echo "	Stopping Service..."
+    colorize yellow "	Stopping EasyMesh service..." bold
     sudo systemctl stop easymesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
-        echo "Service stopped successfully."
+        colorize green "	EasyMesh service stopped successfully.\n"
     else
-        echo  "Failed to stop service."
+        colorize red "	Failed to stop EasyMesh service.\n"
         sleep 2
         return 1
     fi
 
-    echo "	Disabling service..."
+    colorize yellow "	Disabling EasyMesh service..." bold
     sudo systemctl disable easymesh.service &> /dev/null
     if [[ $? -eq 0 ]]; then
-        echo "Service disabled successfully."
+        colorize green "	EasyMesh service disabled successfully.\n"
     else
-        echo "	Failed to disable service."
-        return 1
-    fi
-
-    echo "	Removing service..."
-    sudo rm /etc/systemd/system/easymesh.service &> /dev/null
-    if [[ $? -eq 0 ]]; then
-        echo "Service removed successfully."
-    else
-        echo "Failed to remove service."
-        return 1
-    fi
-    sudo systemctl stop EasyTier_Ping.service &> /dev/null
-    sudo systemctl disable EasyTier_Ping.service &> /dev/null
-    sudo rm /etc/systemd/system/EasyTier_Ping.service &> /dev/null
-    echo "Reloading systemd daemon..."
-    sudo systemctl daemon-reload
-    if [[ $? -eq 0 ]]; then
-        echo "Systemd daemon reloaded successfully."
-    else
-        echo "Failed to reload systemd daemon."
+        colorize red "	Failed to disable EasyMesh service.\n"
         sleep 2
         return 1
     fi
- read -p "Press any key to continue..."
-}
 
-display_routes(){
+    colorize yellow "	Removing EasyMesh service..." bold
+    sudo rm /etc/systemd/system/easymesh.service &> /dev/null
+    if [[ $? -eq 0 ]]; then
+        colorize green "	EasyMesh service removed successfully.\n"
+    else
+        colorize red "	Failed to remove EasyMesh service.\n"
+        sleep 2
+        return 1
+    fi
 
-	$EASY_CLIENT route	
-    read -p "Press any key to continue..."
+    colorize yellow "	Reloading systemd daemon..." bold
+    sudo systemctl daemon-reload
+    if [[ $? -eq 0 ]]; then
+        colorize green "	Systemd daemon reloaded successfully.\n"
+    else
+        colorize red "	Failed to reload systemd daemon.\n"
+        sleep 2
+        return 1
+    fi
+    
+ read -p "	Press Enter to continue..."
 }
 
 show_network_secret() {
@@ -293,64 +343,377 @@ show_network_secret() {
             colorize red "	Network Secret key not found" bold
         fi
     else
-        colorize red "Service does not exists." bold
+        colorize red "	EasyMesh service does not exists." bold
     fi
     echo ''
-    read -p "Press any key to continue..."
+    read -p "	Press Enter to continue..."
    
     
 }
-restart_service() {
-    echo "Restarting Service..."
-    sudo systemctl restart easymesh.service &> /dev/null
-    if [[ $? -eq 0 ]]; then
-        colorize green "Service restarted successfully." bold
-    else
-        colorize red "Failed to restart Service." bold
-    fi
-    read -p "Press any key to continue..."
+
+view_service_status() {
+	if [[ ! -f $SERVICE_FILE ]]; then
+		 colorize red "	EasyMesh service does not exists." bold
+		 sleep 1
+		 return 1
+	fi
+	clear
+    sudo systemctl status easymesh.service
 }
 
-while true; do
-    echo ""
-    echo "1) Make Main Server Setup"
-    echo "2) connect node server"
-    echo "3) Display Secret Key"
-    echo "4) Display Routes"
-    echo "5) Restart service"
-    echo "6) Remove Completely"
-    echo "9) Back"
-    read -p "Enter your choice : " choice
+set_watchdog(){
+	clear
+	view_watchdog_status
+	echo "---------------------------------------------"
+	echo 
+	colorize cyan "Select your option:" bold
+	colorize green "1) Create watchdog service"
+	colorize red "2) Stop & remove watchdog service"
+    colorize yellow "3) View Logs"
+    colorize reset "4) Back"
+    echo ''
+    read -p "Enter your choice: " CHOICE
+    case $CHOICE in 
+    	1) start_watchdog ;;
+    	2) stop_watchdog ;;
+    	3) view_logs ;;
+    	4) return 0;;
+    	*) colorize red "Invalid option!" bold && sleep 1 && return 1;;
+    esac
 
-    case $choice in
+}
+
+start_watchdog(){
+	clear
+	colorize cyan "Important: You can check the status of the service \nand restart it if the latency is higher than a certain limit. \nI recommend to run it only on one server and preferably outside (Kharej) server" bold
+	echo ''
+	
+	read -p "Enter the local IP address to monitor: " IP_ADDRESS
+	read -p "Enter the latency threshold in ms (200): " LATENCY_THRESHOLD
+	read -p "Enter the time between checks in seconds (8): " CHECK_INTERVAL
+	
+	rm -f /etc/monitor.sh /etc/monitor.log &> /dev/null
+	touch /etc/monitor.sh /etc/monitor.log &> /dev/null
+	
+cat << EOF | sudo tee /etc/monitor.sh > /dev/null
+#!/bin/bash
+
+# Configuration
+IP_ADDRESS="$IP_ADDRESS"
+LATENCY_THRESHOLD=$LATENCY_THRESHOLD
+CHECK_INTERVAL=$CHECK_INTERVAL
+SERVICE_NAME="easymesh.service"
+LOG_FILE="/etc/monitor.log"
+
+# Function to restart the service
+restart_service() {
+    local restart_time=\$(date +"%Y-%m-%d %H:%M:%S")
+    sudo systemctl restart "\$SERVICE_NAME"
+    if [ \$? -eq 0 ]; then
+        echo "\$restart_time: Service \$SERVICE_NAME restarted successfully." >> "\$LOG_FILE"
+    else
+        echo "\$restart_time: Failed to restart service \$SERVICE_NAME." >> "\$LOG_FILE"
+    fi
+}
+
+# Function to calculate average latency
+calculate_average_latency() {
+    local latencies=(\$(ping -c 3 -W 2 -i 0.2 "\$IP_ADDRESS" | grep 'time=' | sed -n 's/.*time=\([0-9.]*\) ms.*/\1/p'))
+    local total_latency=0
+    local count=\${#latencies[@]}
+
+    for latency in "\${latencies[@]}"; do
+        total_latency=\$(echo "\$total_latency + \$latency" | bc)
+    done
+
+    if [ \$count -gt 0 ]; then
+        local average_latency=\$(echo "scale=2; \$total_latency / \$count" | bc)
+        echo \$average_latency
+    else
+        echo 0
+    fi
+}
+
+# Main monitoring loop
+while true; do
+    # Calculate average latency
+    AVG_LATENCY=\$(calculate_average_latency)
+    
+    if [ "\$AVG_LATENCY" == "0" ]; then
+        echo "\$(date +"%Y-%m-%d %H:%M:%S"): Failed to ping \$IP_ADDRESS. Restarting service..." >> "\$LOG_FILE"
+        restart_service
+    else
+        LATENCY_INT=\${AVG_LATENCY%.*}  # Convert latency to integer for comparison
+        if [ "\$LATENCY_INT" -gt "\$LATENCY_THRESHOLD" ]; then
+            echo "\$(date +"%Y-%m-%d %H:%M:%S"): Average latency \$AVG_LATENCY ms exceeds threshold of \$LATENCY_THRESHOLD ms. Restarting service..." >> "\$LOG_FILE"
+            restart_service
+        fi
+    fi
+
+    # Wait for the specified interval before checking again
+    sleep "\$CHECK_INTERVAL"
+done
+EOF
+
+
+	echo
+	colorize yellow "Creating a service for watchdog" bold
+	echo
+    
+SERVICE_FILE="/etc/systemd/system/easymesh-watchdog.service"    
+cat > $SERVICE_FILE <<EOF
+[Unit]
+Description=EasyMesh Watchdog Service
+After=network.target
+
+[Service]
+ExecStart=/bin/bash /etc/monitor.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+	# Execute the script in the background
+    systemctl daemon-reload >/dev/null 2>&1
+	systemctl enable --now easymesh-watchdog.service
+	
+    echo
+    colorize green "Watchdog service started successfully" bold
+    echo
+press_key
+}
+
+# Function to stop the watchdog
+stop_watchdog() {
+	echo 
+	SERVICE_FILE="/etc/systemd/system/easymesh-watchdog.service" 
+	
+	if [[ ! -f $SERVICE_FILE ]]; then
+		 colorize red "Watchdog service does not exists." bold
+		 sleep 1
+		 return 1
+	fi
+	
+    systemctl disable --now easymesh-watchdog.service &> /dev/null
+    rm -f /etc/monitor.sh /etc/monitor.log &> /dev/null 
+    rm -f "$SERVICE_FILE"  &> /dev/null 
+    systemctl daemon-reload &> /dev/null
+    colorize yellow "Watchdog service stopped and removed successfully" bold
+    echo
+    press_key
+}
+
+view_watchdog_status(){
+	if systemctl is-active --quiet "easymesh-watchdog.service"; then
+				colorize green "	Watchdog service is running" bold
+			else
+				colorize red "	Watchdog service is not running" bold
+	fi		
+
+}
+# Function to view logs
+view_logs() {
+    if [ -f /etc/monitor.log ]; then
+        less +G /etc/monitor.log
+    else
+    	echo ''
+        colorize yellow "No logs found.\n" bold
+        press_key
+    fi
+    
+}
+
+
+# Function to add cron-tab job
+add_cron_job() {
+	echo 
+
+	local service_name="easymesh.service"
+	
+    # Prompt user to choose a restart time interval
+    colorize cyan "Select the restart time interval:" bold
+    echo
+    echo "1. Every 30th minute"
+    echo "2. Every 1 hour"
+    echo "3. Every 2 hours"
+    echo "4. Every 4 hours"
+    echo "5. Every 6 hours"
+    echo "6. Every 12 hours"
+    echo "7. Every 24 hours"
+    echo
+    read -p "Enter your choice: " time_choice
+    # Validate user input for restart time interval
+    case $time_choice in
         1)
-            install_unzip
-            install_easytier
-            connect_network_pool 1
+            restart_time="*/30 * * * *"
             ;;
         2)
-            install_unzip
-            install_easytier
-            connect_network_pool 2
+            restart_time="0 * * * *"
             ;;
         3)
-            show_network_secret
+            restart_time="0 */2 * * *"
             ;;
         4)
-            display_routes
+            restart_time="0 */4 * * *"
             ;;
         5)
-            restart_service
+            restart_time="0 */6 * * *"
             ;;
         6)
-            remove_easymesh_service
+            restart_time="0 */12 * * *"
             ;;
-        9)
-            echo "Exiting..."
-            break
+        7)
+            restart_time="0 0 * * *"
             ;;
         *)
-            echo "Invalid option. Please try again."
+            echo -e "${RED}Invalid choice. Please enter a number between 1 and 7.${NC}\n"
+            sleep 2
+            return 1
             ;;
     esac
+
+
+    # remove cronjob created by this script
+    delete_cron_job > /dev/null 2>&1
+    
+    # Path to reset file
+    local reset_path="/root/easytier/reset.sh"
+    
+    #add cron job to kill the running easymesh processes
+    cat << EOF > "$reset_path"
+#! /bin/bash
+pids=\$(pgrep easytier)
+sudo kill -9 \$pids
+sudo systemctl daemon-reload
+sudo systemctl restart $service_name
+EOF
+
+    # make it +x
+    chmod +x "$reset_path"
+    
+    # Save existing crontab to a temporary file
+    crontab -l > /tmp/crontab.tmp
+
+    # Append the new cron job to the temporary file
+    echo "$restart_time $reset_path #$service_name" >> /tmp/crontab.tmp
+
+    # Install the modified crontab from the temporary file
+    crontab /tmp/crontab.tmp
+
+    # Remove the temporary file
+    rm /tmp/crontab.tmp
+    
+    echo
+    colorize green "Cron-job added successfully to restart the service '$service_name'." bold
+    sleep 2
+}
+
+delete_cron_job() {
+    echo
+    local service_name="easymesh.service"
+    local reset_path="/root/easytier/reset.sh"
+    
+    crontab -l | grep -v "#$service_name" | crontab -
+    rm -f "$reset_path" >/dev/null 2>&1
+    
+    colorize green "Cron job for $service_name deleted successfully." bold
+    
+    sleep 2
+}
+
+set_cronjob(){
+   	clear
+   	colorize cyan "Cron-job setting menu" bold
+   	echo 
+   	
+   	colorize green "1) Add a new cronjob"
+   	colorize red "2) Delete existing cronjob"
+   	colorize reset "3) Return..."
+   	
+   	echo
+   	echo -ne "Select you option [1-3]: "
+   	read -r choice
+   	
+   	case $choice in 
+   		1) add_cron_job ;;
+   		2) delete_cron_job ;;
+   		3) return 0 ;;
+   		*) colorize red "Invalid option!" && sleep 1 && return 1 ;;
+   	esac
+   	
+}
+
+check_core_status(){
+    DEST_DIR="/root/easytier"
+    FILE1="easytier-core"
+    FILE2="easytier-cli"
+    
+        if [ -f "$DEST_DIR/$FILE1" ] && [ -f "$DEST_DIR/$FILE2" ]; then
+        colorize green "EasyMesh Core Installed" bold
+        return 0
+    else
+        colorize red "EasyMesh Core not found" bold
+        return 1
+    fi
+}
+
+# Function to display menu
+display_menu() {
+    clear
+# Print the header with colors
+echo -e "   ${CYAN}╔════════════════════════════════════════╗"
+echo -e "   ║            🌐 ${WHITE}EasyMesh                 ${CYAN}║"
+echo -e "   ║        ${WHITE}VPN Network Solution            ${CYAN}║"
+echo -e "   ╠════════════════════════════════════════╣"
+echo -e "   ║  ${WHITE}Version: 0.95 beta                    ${CYAN}║"
+echo -e "   ║  ${WHITE}Developer: Musixal                    ${CYAN}║"
+echo -e "   ║  ${WHITE}Telegram Channel: @Gozar_Xray         ${CYAN}║"
+echo -e "   ║  ${WHITE}GitHub: github.com/Musixal/easy-mesh  ${CYAN}║"
+echo -e "   ╠════════════════════════════════════════╣${RESET}"
+echo -e "   ║        $(check_core_status)         ║"
+echo -e "   ╚════════════════════════════════════════╝"
+
+    echo ''
+    colorize yellow "	[1] Setup Main Server" bold 
+    colorize yellow "	[2] Connect Peer Server" 
+    colorize green "	[3] Display Peers" 
+    colorize cyan "	[4] Display Routes" 
+    colorize reset "	[5] Display Secret Key"
+    colorize reset "	[6] View Service Status"  
+    colorize reset "	[7] Set Watchdog [Auto-Restarter]"
+    colorize reset "	[8] Cron-jon setting"   
+    colorize yellow "	[9] Restart Service" 
+    colorize magenta "	[10] Remove Service" 
+    echo -e "	[0] Exit" 
+    echo ''
+}
+
+
+# Function to read user input
+read_option() {
+	echo -e "\t-------------------------------"
+    echo -en "\t${MAGENTA}\033[1mEnter your choice:${RESET} "
+    read -p '' choice 
+    case $choice in
+        1) setup_main ;;
+        2) connect_network_pool ;;
+        3) display_peers ;;
+        4) display_routes ;;
+        5) show_network_secret ;;
+        6) view_service_status ;;
+        7) set_watchdog ;;
+        8) set_cronjob ;;
+        9) restart_easymesh_service ;;
+        10) remove_easymesh_service ;;
+        0) exit 0 ;;
+        *) colorize red "	Invalid option!" bold && sleep 1 ;;
+    esac
+}
+
+# Main script
+while true
+do
+    display_menu
+    read_option
 done
