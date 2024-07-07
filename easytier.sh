@@ -191,12 +191,15 @@ connect_network_pool(){
     	sleep 2
     	return 1
     fi
-    
-    read -p "[*] Enter Local IPv4 Address (e.g., 10.144.144.x): " IP_ADDRESS
+    read -e -i "10.144.144." -p "[*] Enter an Local IPv4 Address : " IP_ADDRESS
     if [ -z $IP_ADDRESS ]; then
     	colorize red "Null value. aborting..."
     	sleep 2
     	return 1
+    fi
+    if [[ $IP_ADDRESS == 10.144.144.1 ]]; then
+        echo "Entered IP address is not acceptable."
+        return 1
     fi
 
     while true; do
@@ -211,15 +214,11 @@ connect_network_pool(){
     colorize green "[-] Select Default Protocol:" bold
     echo "1) tcp"
     echo "2) udp"
-    echo "3) ws"
-    echo "4) wss"
     read -p "[*] Select your desired protocol (e.g., 1 for tcp): " PROTOCOL_CHOICE
 	
     case $PROTOCOL_CHOICE in
         1) DEFAULT_PROTOCOL="tcp" ;;
         2) DEFAULT_PROTOCOL="udp" ;;
-        3) DEFAULT_PROTOCOL="ws" ;;
-        4) DEFAULT_PROTOCOL="wss" ;;
         *) colorize red "Invalid choice. Defaulting to tcp." ; DEFAULT_PROTOCOL="tcp" ;;
     esac
 	
