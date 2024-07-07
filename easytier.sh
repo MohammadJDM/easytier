@@ -199,6 +199,7 @@ connect_network_pool(){
     fi
     if [[ $IP_ADDRESS == 10.144.144.1 ]]; then
         echo "Entered IP address is not acceptable."
+        sleep 2
         return 1
     fi
 
