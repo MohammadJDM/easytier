@@ -185,7 +185,7 @@ connect_network_pool(){
 	colorize cyan "Connect to the Mesh Network" bold 
 	echo ''
 	
-    read -p "[-] Enter Peer IPv4/IPv6 Addresses (separate multiple addresses by ','): " PEER_ADDRESSES
+    read -p "[*] Enter Peer IPv4 : " PEER_ADDRESSES
     if [ -z $PEER_ADDRESSES ]; then
     	colorize red "Null value. aborting..."
     	sleep 2
